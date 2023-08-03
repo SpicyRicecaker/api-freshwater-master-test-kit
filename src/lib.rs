@@ -1,6 +1,7 @@
 use leptos::*;
 
 pub mod task {
+    use super::*;
     #[derive(Debug, Clone, Copy)]
     pub enum TaskState {
         NotStarted,
@@ -9,14 +10,14 @@ pub mod task {
 
     #[derive(Debug, Clone)]
     pub struct Task {
-        pub state: TaskState,
+        pub state: RwSignal<TaskState>,
         pub text: String,
     }
 
     impl Task {
-        pub fn new(text: &str) -> Self {
+        pub fn new(cx: Scope, text: &str) -> Self {
             Task {
-                state: TaskState::NotStarted,
+                state: create_rw_signal(cx, TaskState::NotStarted),
                 text: text.to_string(),
             }
         }

@@ -4,7 +4,10 @@ use web_time::Instant;
 
 use leptos::*;
 
-use api_freshwater_master_test_kit_ui::{task::{Task, TaskState}, timed_task::{TimedTask, TimedTaskState}};
+use api_freshwater_master_test_kit_ui::{
+    task::{Task, TaskState},
+    timed_task::{TimedTask, TimedTaskState},
+};
 
 fn main() {
     mount_to_body(|cx| view! { cx,  <App/> })
@@ -17,7 +20,7 @@ fn App(cx: Scope) -> impl IntoView {
             cx,
             "pH",
             vec![
-                PreListItem::Task(Task::new("Add 5 drops")),
+                PreListItem::Task(Task::new(cx, "Add 5 drops")),
                 PreListItem::TimedTask(TimedTask::new(
                     cx,
                     "Shake for",
@@ -41,10 +44,10 @@ fn App(cx: Scope) -> impl IntoView {
                         view=move |cx, (_, item)| {
                             view! { cx,
                                 {match item {
-                                    ListItem::TimedTask((timed_task, _)) => {
+                                    ListItem::TimedTask(timed_task) => {
                                         view! { cx,
                                             <div>
-                                                <button on:click=move|_| {
+                                                <button on:click=move |_|{
                                                     match timed_task.get_untracked().state.get() {
                                                         TimedTaskState::NotStarted => {
                                                             // change the state
@@ -87,27 +90,34 @@ fn App(cx: Scope) -> impl IntoView {
                                                     TimedTaskState::Ongoing => "reset",
                                                     TimedTaskState::Done => "next",
                                                 }}</button>
-                                                <div>{move || timed_task.get().text} {move || format!(" {:#.2?}", timed_task.get().duration_remaining.get())}</div>
+                                                <div>{timed_task.get_untracked().text} {move || format!(" {:#.2?}", timed_task.get_untracked().duration_remaining.get())}</div>
                                             </div>
                                         }.into_any()
                                     },
-                                    ListItem::Task((task, set_task)) => {
+                                    ListItem::Task(task) => {
                                         view! { cx,
                                             <div>
-                                                <button on:click=move|_| {set_task.update(|t| {
-                                                    t.state = match t.state {
-                                                        TaskState::NotStarted => TaskState::Done,
-                                                        TaskState::Done => TaskState::Done,
-                                                    };
-                                                })}>{move || match task.get().state {
-                                                    TaskState::NotStarted => "start",
-                                                    TaskState::Done => "DONE",
-                                                }}</button>
-                                                <div>{move || task.get().text}</div>
+                                                <button on:click=move|_| {
+                                                    task.get_untracked().state.update(|t| {
+                                                        log!("clicked. state: {:#?}", t);
+                                                        *t = match *t {
+                                                            TaskState::NotStarted => TaskState::Done,
+                                                            TaskState::Done => TaskState::Done,
+                                                        }
+                                                    });
+                                                }>{
+                                                    move || task.get_untracked().state.with(|t| {
+                                                        match *t {
+                                                            TaskState::NotStarted => "start",
+                                                            TaskState::Done => "DONE",
+                                                        }
+                                                    })
+                                                }</button>
+                                                <div>{move || task.get_untracked().text}</div>
                                             </div>
                                         }.into_any()
-                                    },
-                                    ListItem::Input((input, set_input)) => {
+                                    }
+                                    ListItem::Input(input) => {
                                         todo!()
                                     },
                                 }}
@@ -116,7 +126,8 @@ fn App(cx: Scope) -> impl IntoView {
                     />
                 </div>
             }
-        }).collect_view(cx)}
+        }).collect_view(cx)
+        }
     }
 }
 
@@ -129,46 +140,43 @@ enum PreListItem {
 
 #[derive(Debug, Clone)]
 enum ListItem {
-    TimedTask((ReadSignal<TimedTask>, WriteSignal<TimedTask>)),
-    Task((ReadSignal<Task>, WriteSignal<Task>)),
-    Input((ReadSignal<Input>, WriteSignal<Input>)),
+    TimedTask(RwSignal<TimedTask>),
+    Task(RwSignal<Task>),
+    Input(Input),
 }
-
-
 
 #[derive(Debug, Clone)]
 struct Input {}
 
 struct ItemList {
     name: String,
-    items: ReadSignal<Vec<(usize, ListItem)>>,
-    set_items: WriteSignal<Vec<(usize, ListItem)>>,
+    items: RwSignal<Vec<(usize, ListItem)>>,
 }
 
 impl ItemList {
-    fn new(cx: Scope, name: &str, pre_list_items: Vec<PreListItem>) -> Self {
-        let (items, set_items) = create_signal(
+    fn new(cx: Scope, name: &str, pre_items: Vec<PreListItem>) -> Self {
+        let items = create_rw_signal(
             cx,
-            pre_list_items
+            pre_items
                 .into_iter()
                 .enumerate()
-                .map(|(i, pre_list_item)| {
-                    (i, {
-                        match pre_list_item {
-                            PreListItem::Input(input) => ListItem::Input(create_signal(cx, input)),
+                .map(|(idx, pre_item)| {
+                    (
+                        idx,
+                        match pre_item {
                             PreListItem::TimedTask(timed_task) => {
-                                ListItem::TimedTask(create_signal(cx, timed_task))
+                                ListItem::TimedTask(create_rw_signal(cx, timed_task))
                             }
-                            PreListItem::Task(task) => ListItem::Task(create_signal(cx, task)),
-                        }
-                    })
+                            PreListItem::Task(task) => ListItem::Task(create_rw_signal(cx, task)),
+                            PreListItem::Input(i) => ListItem::Input(i),
+                        },
+                    )
                 })
                 .collect::<Vec<_>>(),
         );
         Self {
             name: name.to_string(),
             items,
-            set_items,
         }
     }
 }
