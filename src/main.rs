@@ -1,6 +1,10 @@
-use std::time::{Duration, Instant};
+use std::time::Duration;
+// Note! std::time::Instant is *not* implemented on WASM!
+use web_time::Instant;
 
 use leptos::*;
+
+use api_freshwater_master_test_kit_ui::{task::{Task, TaskState}, timed_task::{TimedTask, TimedTaskState}};
 
 fn main() {
     mount_to_body(|cx| view! { cx,  <App/> })
@@ -17,7 +21,8 @@ fn App(cx: Scope) -> impl IntoView {
                 PreListItem::TimedTask(TimedTask::new(
                     cx,
                     "Shake for",
-                    Duration::from_secs(5 * 60),
+                    // Duration::from_secs(5 * 60),
+                    Duration::from_secs(1),
                 )),
             ],
         ),
@@ -36,42 +41,53 @@ fn App(cx: Scope) -> impl IntoView {
                         view=move |cx, (_, item)| {
                             view! { cx,
                                 {match item {
-                                    ListItem::TimedTask((timed_task, set_timed_task)) => {
+                                    ListItem::TimedTask((timed_task, _)) => {
                                         view! { cx,
                                             <div>
                                                 <button on:click=move|_| {
-                                                    match timed_task.get().state {
+                                                    match timed_task.get_untracked().state.get() {
                                                         TimedTaskState::NotStarted => {
-                                                            // start the timer.
-                                                            let tick = move || {
-                                                                dbg!(timed_task.get().duration_remaining);
-                                                                let lol = move || {
-
-                                                                };
-                                                                request_animation_frame(lol);
-                                                            };
-                                                            // |mut prev| {
-                                                            //     if timed_tast.get().state == TimedTaskState::Ongoing {
-                                                            //         //
-                                                            //     }
-                                                            // }
-
                                                             // change the state
-                                                            set_timed_task.update(|t| t.state = TimedTaskState::Ongoing);
+                                                            timed_task.get_untracked().state.update(|s| *s = TimedTaskState::Ongoing);
+
+                                                            // start the timer.
+                                                            fn tick (previous_instant: Instant, timed_task: TimedTask) {
+                                                                let now = Instant::now();
+
+                                                                timed_task.duration_remaining.update(|d| *d = d.saturating_sub(previous_instant.elapsed()));
+                                                                // only go on if
+                                                                // 1) duration isn't 0
+                                                                if timed_task.duration_remaining.get_untracked() == Duration::ZERO {
+                                                                    timed_task.state.update(|s| *s = TimedTaskState::Done);
+                                                                    return;
+                                                                }
+
+                                                                // 2) we haven't changed state to NotStarted
+                                                                if timed_task.state.get_untracked() == TimedTaskState::NotStarted {
+                                                                    // reset duration to max duration
+                                                                    timed_task.duration_remaining.update(|d| *d = timed_task.max_duration);
+                                                                    return;
+                                                                }
+
+                                                                request_animation_frame(move || tick(now, timed_task));
+                                                            }
+                                                            let now = Instant::now();
+                                                            request_animation_frame(move || tick(now, timed_task.get_untracked()));
                                                         },
                                                         // WIP maybe add some way to undo a reset?
                                                         TimedTaskState::Ongoing => {
-                                                            todo!()
+                                                            // pause the timer
+                                                            timed_task.get_untracked().state.update(|s| *s = TimedTaskState::NotStarted);
                                                         },
                                                         // maybe hide the button completely
                                                         TimedTaskState::Done => todo!(),
                                                     }
-                                                }>{move || match timed_task.get().state {
+                                                }>{move || match timed_task.get_untracked().state.get() {
                                                     TimedTaskState::NotStarted => "start",
                                                     TimedTaskState::Ongoing => "reset",
-                                                    TimedTaskState::Done => "",
+                                                    TimedTaskState::Done => "next",
                                                 }}</button>
-                                                <div>{move || timed_task.get().text} {move || format!(" {:#?}", timed_task.get().duration_remaining)}</div>
+                                                <div>{move || timed_task.get().text} {move || format!(" {:#.2?}", timed_task.get().duration_remaining.get())}</div>
                                             </div>
                                         }.into_any()
                                     },
@@ -118,52 +134,7 @@ enum ListItem {
     Input((ReadSignal<Input>, WriteSignal<Input>)),
 }
 
-#[derive(Debug, Clone)]
-enum TimedTaskState {
-    NotStarted,
-    Ongoing,
-    Done,
-}
 
-#[derive(Debug, Clone, Copy)]
-enum TaskState {
-    NotStarted,
-    Done,
-}
-
-#[derive(Debug, Clone)]
-struct TimedTask {
-    state: TimedTaskState,
-    text: String,
-    max_duration: Duration,
-    duration_remaining: (ReadSignal<Duration>, WriteSignal<Duration>),
-}
-
-impl TimedTask {
-    fn new(cx: Scope, text: &str, max_duration: Duration) -> Self {
-        Self {
-            state: TimedTaskState::NotStarted,
-            text: text.to_string(),
-            max_duration,
-            duration_remaining: create_signal(cx, max_duration),
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
-struct Task {
-    state: TaskState,
-    text: String,
-}
-
-impl Task {
-    fn new(text: &str) -> Self {
-        Task {
-            state: TaskState::NotStarted,
-            text: text.to_string(),
-        }
-    }
-}
 
 #[derive(Debug, Clone)]
 struct Input {}
