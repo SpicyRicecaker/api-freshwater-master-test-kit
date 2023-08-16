@@ -15,9 +15,9 @@ pub mod task {
     }
 
     impl Task {
-        pub fn new(cx: Scope, text: &str) -> Self {
+        pub fn new(text: &str) -> Self {
             Task {
-                state: create_rw_signal(cx, TaskState::NotStarted),
+                state: create_rw_signal(TaskState::NotStarted),
                 text: text.to_string(),
             }
         }
@@ -38,12 +38,12 @@ pub mod timed_task {
     }
 
     impl TimedTask {
-        pub fn new(cx: Scope, text: &str, max_duration: Duration) -> Self {
+        pub fn new(text: &str, max_duration: Duration) -> Self {
             Self {
-                state: create_rw_signal(cx, TimedTaskState::NotStarted),
+                state: create_rw_signal(TimedTaskState::NotStarted),
                 text: text.to_string(),
                 max_duration,
-                duration_remaining: create_rw_signal(cx, max_duration),
+                duration_remaining: create_rw_signal(max_duration),
             }
         }
     }
@@ -53,5 +53,4 @@ pub mod timed_task {
         Ongoing,
         Done,
     }
-
 }
