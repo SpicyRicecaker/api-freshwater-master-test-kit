@@ -1,4 +1,5 @@
 use leptos::*;
+pub const IS_TEST: bool = true;
 
 pub mod task {
     use super::*;
@@ -38,7 +39,10 @@ pub mod timed_task {
     }
 
     impl TimedTask {
-        pub fn new(text: &str, max_duration: Duration) -> Self {
+        pub fn new(text: &str, mut max_duration: Duration) -> Self {
+            if IS_TEST {
+                max_duration = Duration::from_millis(300);
+            }
             Self {
                 state: create_rw_signal(TimedTaskState::NotStarted),
                 text: text.to_string(),

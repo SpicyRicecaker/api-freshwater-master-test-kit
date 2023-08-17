@@ -19,12 +19,10 @@ fn App() -> impl IntoView {
         ItemList::new(
             "pH",
             vec![
+                PreListItem::TimedTask(TimedTask::new("Shake for", Duration::from_secs(5))),
                 PreListItem::Task(Task::new("Add 5 drops")),
-                PreListItem::TimedTask(TimedTask::new(
-                    "Shake for",
-                    // Duration::from_secs(5 * 60),
-                    Duration::from_secs(1),
-                )),
+                PreListItem::TimedTask(TimedTask::new("Wait for", Duration::from_secs(5 * 60))),
+                PreListItem::Input(Input::new()),
             ],
         ),
         ItemList::new("Ammonia", vec![]),
@@ -42,8 +40,10 @@ fn App() -> impl IntoView {
 
 #[component]
 fn ItemListComponent(item_list: ItemList) -> impl IntoView {
-    provide_context(item_list.pre_list_items);
-    provide_context(item_list.items);
+    provide_context(ItemListContext {
+        pre_list_items: item_list.pre_list_items,
+        items: item_list.items,
+    });
 
     view! {
         <div class="item_list">
@@ -69,13 +69,27 @@ fn ListItemComponent(item: ListItem) -> impl IntoView {
             view! {<TaskComponent task/>}
         }
         ListItem::Input(input) => {
-            todo!()
+            view! {<InputComponent input/>}
         }
     }
 }
 
+#[derive(Clone)]
+struct ItemListContext {
+    pre_list_items: ReadSignal<Vec<PreListItem>>,
+    items: RwSignal<Vec<(usize, ListItem)>>,
+}
+
 #[component]
 fn TimedTaskComponent(timed_task: RwSignal<TimedTask>) -> impl IntoView {
+    let item_list_context = expect_context::<ItemListContext>();
+
+    log!(
+        "I RAN, XDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD, {:#?}, {:#?}",
+        item_list_context.pre_list_items.get_untracked(),
+        item_list_context.items.get_untracked()
+    );
+
     view! { <div>
         <button on:click=move |_|{
             match timed_task.get_untracked().state.get() {
@@ -113,7 +127,13 @@ fn TimedTaskComponent(timed_task: RwSignal<TimedTask>) -> impl IntoView {
                     timed_task.get_untracked().state.update(|s| *s = TimedTaskState::NotStarted);
                 },
                 // maybe hide the button completely
-                TimedTaskState::Done => todo!(),
+                TimedTaskState::Done => {
+                    log!("hi adding lol");
+                    ItemList::try_add_item(
+                        &item_list_context.pre_list_items.get_untracked(),
+                        item_list_context.items
+                    );
+                },
             }
         }>{move || match timed_task.get_untracked().state.get() {
             TimedTaskState::NotStarted => "start",
@@ -127,20 +147,17 @@ fn TimedTaskComponent(timed_task: RwSignal<TimedTask>) -> impl IntoView {
 
 #[component]
 fn TaskComponent(task: RwSignal<Task>) -> impl IntoView {
-    let pre_list_items =
-        use_context::<ReadSignal<Vec<PreListItem>>>().expect("pre_list_items not found");
-    let items = use_context::<RwSignal<Vec<(usize, ListItem)>>>().expect("items not found");
+    let item_list_context = expect_context::<ItemListContext>();
 
     view! { <div>
         <button on:click=move|_| {
             task.get_untracked().state.update(|t| {
-                log!("clicked. state: {:#?}", t);
                 *t = match *t {
                     TaskState::NotStarted => TaskState::Done,
                     TaskState::Done => {
                         ItemList::try_add_item(
-                            &pre_list_items.get_untracked(),
-                            items
+                            &item_list_context.pre_list_items.get_untracked(),
+                            item_list_context.items
                         );
                         TaskState::Done
                     },
@@ -170,7 +187,7 @@ enum PreListItem {
 enum ListItem {
     TimedTask(RwSignal<TimedTask>),
     Task(RwSignal<Task>),
-    Input(Input),
+    Input(RwSignal<Input>),
 }
 
 // I still don't understand how leptos author was able to remove cx, makes writing `From` derivatives 10x easier ty
@@ -179,14 +196,37 @@ impl From<PreListItem> for ListItem {
         match pre_list_item {
             PreListItem::TimedTask(timed_task) => ListItem::TimedTask(create_rw_signal(timed_task)),
             PreListItem::Task(task) => ListItem::Task(create_rw_signal(task)),
-            PreListItem::Input(i) => ListItem::Input(i),
+            PreListItem::Input(input) => ListItem::Input(create_rw_signal(input)),
         }
     }
 }
 
-#[derive(Debug, Clone)]
-struct Input {}
+#[component]
+fn InputComponent(input: RwSignal<Input>) -> impl IntoView {
+    view! {
+        <input type="text"
+            on:input=move |ev| {
+                input.get().value.set(event_target_value(&ev))
+            }
+            prop:value=input.get().value
+        />
+    }
+}
 
+#[derive(Debug, Clone)]
+struct Input {
+    value: RwSignal<String>,
+}
+
+impl Input {
+    fn new() -> Self {
+        Self {
+            value: create_rw_signal(String::new()),
+        }
+    }
+}
+
+#[derive(Debug)]
 struct ItemList {
     name: ReadSignal<String>,
     pre_list_items: ReadSignal<Vec<PreListItem>>,
@@ -217,6 +257,7 @@ impl ItemList {
         items: RwSignal<Vec<(usize, ListItem)>>,
     ) -> AddItemToItemListResult {
         if items.get_untracked().len() == pre_list_items.len() {
+            log!("was failure, {:#?}, {:#?}", pre_list_items, items.get());
             AddItemToItemListResult::Failure
         } else {
             let index_to_add_from_pre_list_items = items.get_untracked().len();
