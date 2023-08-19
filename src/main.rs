@@ -19,15 +19,64 @@ fn App() -> impl IntoView {
         ItemList::new(
             "pH",
             vec![
-                PreListItem::TimedTask(TimedTask::new("Shake for", Duration::from_secs(5))),
-                PreListItem::Task(Task::new("Add 5 drops")),
+                PreListItem::Task(Task::new("Fill test tube with 5ml of water")),
+                PreListItem::Task(Task::new("Add 3 drops of pH Test Solution")),
+                PreListItem::TimedTask(TimedTask::new(
+                    "Shake test tube for",
+                    Duration::from_secs(5),
+                )),
                 PreListItem::TimedTask(TimedTask::new("Wait for", Duration::from_secs(5 * 60))),
                 PreListItem::Input(Input::new()),
             ],
         ),
-        ItemList::new("Ammonia", vec![]),
-        ItemList::new("Nirite", vec![]),
-        ItemList::new("Nitrate", vec![]),
+        ItemList::new(
+            "Ammonia",
+            vec![
+                PreListItem::Task(Task::new("Fill test tube with 5ml of water")),
+                PreListItem::Task(Task::new("Add 8 drops from Ammonia Test Solution #1")),
+                PreListItem::Task(Task::new("Add 8 drops from Ammonia Test Solution #2")),
+                PreListItem::TimedTask(TimedTask::new(
+                    "Shake test tube for",
+                    Duration::from_secs(5),
+                )),
+                PreListItem::TimedTask(TimedTask::new("Wait for", Duration::from_secs(5 * 60))),
+                PreListItem::Input(Input::new()),
+            ],
+        ),
+        ItemList::new(
+            "Nirite",
+            vec![
+                PreListItem::Task(Task::new("Fill test tube with 5ml of water")),
+                PreListItem::Task(Task::new("Add 5 drops of Nitrite Test Solution")),
+                PreListItem::TimedTask(TimedTask::new(
+                    "Shake test tube for",
+                    Duration::from_secs(5),
+                )),
+                PreListItem::TimedTask(TimedTask::new("Wait for", Duration::from_secs(5 * 60))),
+                PreListItem::Input(Input::new()),
+            ],
+        ),
+        ItemList::new(
+            "Nitrate",
+            vec![
+                PreListItem::Task(Task::new("Fill test tube with 5ml of water")),
+                PreListItem::Task(Task::new("Add 10 drops of Nitrate Test Solution #1")),
+                PreListItem::Task(Task::new(
+                    "Cap the test tube & invert tube several times to mix solution",
+                )),
+                PreListItem::TimedTask(TimedTask::new(
+                    "Shake Nitrate Test Solution #2 for",
+                    Duration::from_secs(30),
+                )),
+                PreListItem::Task(Task::new("Add 10 drops of Nitrate Test Solution #2")),
+                PreListItem::TimedTask(TimedTask::new(
+                    "Shake test tube for",
+                    Duration::from_secs(60),
+                )),
+                PreListItem::TimedTask(TimedTask::new("Wait for", Duration::from_secs(5 * 60))),
+                PreListItem::Input(Input::new()),
+            ],
+        ),
     ];
 
     item_lists
@@ -152,12 +201,15 @@ fn TaskComponent(task: RwSignal<Task>, item_list_context: ItemListContext) -> im
         <button on:click=move|_| {
             task.get_untracked().state.update(|t| {
                 *t = match *t {
-                    TaskState::NotStarted => TaskState::Done,
-                    TaskState::Done => {
+                    TaskState::NotStarted => TaskState::InProgress,
+                    TaskState::InProgress => {
                         ItemList::try_add_item(
                             &item_list_context.pre_list_items.get_untracked(),
                             item_list_context.items
                         );
+                        TaskState::Done
+                    }
+                    TaskState::Done => {
                         TaskState::Done
                     },
                 }
@@ -166,7 +218,8 @@ fn TaskComponent(task: RwSignal<Task>, item_list_context: ItemListContext) -> im
             move || task.get_untracked().state.with(|t| {
                 match *t {
                     TaskState::NotStarted => "start",
-                    TaskState::Done => "DONE",
+                    TaskState::InProgress => "next",
+                    TaskState::Done => "next",
                 }
             })
         }</button>

@@ -6,6 +6,7 @@ pub mod task {
     #[derive(Debug, Clone, Copy)]
     pub enum TaskState {
         NotStarted,
+        InProgress,
         Done,
     }
 
