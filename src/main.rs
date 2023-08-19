@@ -134,12 +134,6 @@ fn TimedTaskComponent(
     timed_task: RwSignal<TimedTask>,
     item_list_context: ItemListContext,
 ) -> impl IntoView {
-    log!(
-        "I RAN, XDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD, {:#?}, {:#?}",
-        item_list_context.pre_list_items.get_untracked(),
-        item_list_context.items.get_untracked()
-    );
-
     view! { <div>
         <button on:click=move |_|{
             match timed_task.get_untracked().state.get() {
@@ -178,7 +172,6 @@ fn TimedTaskComponent(
                 },
                 // maybe hide the button completely
                 TimedTaskState::Done => {
-                    log!("hi adding lol");
                     ItemList::try_add_item(
                         &item_list_context.pre_list_items.get_untracked(),
                         item_list_context.items
@@ -309,21 +302,15 @@ impl ItemList {
         items: RwSignal<Vec<(usize, ListItem)>>,
     ) -> AddItemToItemListResult {
         if items.get_untracked().len() == pre_list_items.len() {
-            // log!("was failure, {:#?}, {:#?}", pre_list_items, items.get());
             AddItemToItemListResult::Failure
         } else {
             let index_to_add_from_pre_list_items = items.get_untracked().len();
-            log!(
-                "adding item with index, {}",
-                index_to_add_from_pre_list_items
-            );
             items.update(|items| {
                 items.push((
                     index_to_add_from_pre_list_items,
                     ListItem::from(pre_list_items[index_to_add_from_pre_list_items].clone()),
                 ));
             });
-            log!("was success");
             AddItemToItemListResult::Success
         }
     }
