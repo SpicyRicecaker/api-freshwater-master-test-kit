@@ -40,19 +40,19 @@ fn App() -> impl IntoView {
 
 #[component]
 fn ItemListComponent(item_list: ItemList) -> impl IntoView {
-    provide_context(ItemListContext {
+    let item_list_context = ItemListContext {
         pre_list_items: item_list.pre_list_items,
         items: item_list.items,
-    });
+    };
 
     view! {
         <div class="item_list">
-            <h2>{item_list.name.clone()}</h2>
+            <h2>{item_list.name}</h2>
             <For
                 each=item_list.items
-                key=|(idx, _)| *idx
+                key=|&(idx, _)| idx
                 view=move |(_, item)| {
-                    view! {<ListItemComponent item/>}
+                    view! {<ListItemComponent item item_list_context/>}
                 }
             />
         </div>
@@ -60,30 +60,31 @@ fn ItemListComponent(item_list: ItemList) -> impl IntoView {
 }
 
 #[component]
-fn ListItemComponent(item: ListItem) -> impl IntoView {
+fn ListItemComponent(item: ListItem, item_list_context: ItemListContext) -> impl IntoView {
     match item {
         ListItem::TimedTask(timed_task) => {
-            view! {<TimedTaskComponent timed_task/>}
+            view! {<TimedTaskComponent timed_task item_list_context/>}
         }
         ListItem::Task(task) => {
-            view! {<TaskComponent task/>}
+            view! {<TaskComponent task item_list_context/>}
         }
         ListItem::Input(input) => {
-            view! {<InputComponent input/>}
+            view! {<InputComponent input item_list_context/>}
         }
     }
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone, Copy)]
 struct ItemListContext {
     pre_list_items: ReadSignal<Vec<PreListItem>>,
     items: RwSignal<Vec<(usize, ListItem)>>,
 }
 
 #[component]
-fn TimedTaskComponent(timed_task: RwSignal<TimedTask>) -> impl IntoView {
-    let item_list_context = expect_context::<ItemListContext>();
-
+fn TimedTaskComponent(
+    timed_task: RwSignal<TimedTask>,
+    item_list_context: ItemListContext,
+) -> impl IntoView {
     log!(
         "I RAN, XDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD, {:#?}, {:#?}",
         item_list_context.pre_list_items.get_untracked(),
@@ -146,9 +147,7 @@ fn TimedTaskComponent(timed_task: RwSignal<TimedTask>) -> impl IntoView {
 }
 
 #[component]
-fn TaskComponent(task: RwSignal<Task>) -> impl IntoView {
-    let item_list_context = expect_context::<ItemListContext>();
-
+fn TaskComponent(task: RwSignal<Task>, item_list_context: ItemListContext) -> impl IntoView {
     view! { <div>
         <button on:click=move|_| {
             task.get_untracked().state.update(|t| {
@@ -202,7 +201,7 @@ impl From<PreListItem> for ListItem {
 }
 
 #[component]
-fn InputComponent(input: RwSignal<Input>) -> impl IntoView {
+fn InputComponent(input: RwSignal<Input>, item_list_context: ItemListContext) -> impl IntoView {
     view! {
         <input type="text"
             on:input=move |ev| {
@@ -257,10 +256,14 @@ impl ItemList {
         items: RwSignal<Vec<(usize, ListItem)>>,
     ) -> AddItemToItemListResult {
         if items.get_untracked().len() == pre_list_items.len() {
-            log!("was failure, {:#?}, {:#?}", pre_list_items, items.get());
+            // log!("was failure, {:#?}, {:#?}", pre_list_items, items.get());
             AddItemToItemListResult::Failure
         } else {
             let index_to_add_from_pre_list_items = items.get_untracked().len();
+            log!(
+                "adding item with index, {}",
+                index_to_add_from_pre_list_items
+            );
             items.update(|items| {
                 items.push((
                     index_to_add_from_pre_list_items,
