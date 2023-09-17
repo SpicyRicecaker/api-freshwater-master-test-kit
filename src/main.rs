@@ -2,7 +2,7 @@ use std::time::Duration;
 // Note! std::time::Instant is *not* implemented on WASM!
 use web_time::Instant;
 
-use leptos::*;
+use leptos::{logging::log, *};
 
 use api_freshwater_master_test_kit_ui::{
     task::{Task, TaskState},
@@ -96,7 +96,10 @@ fn ItemListComponent(item_list: ItemList) -> impl IntoView {
 
     view! {
         <div class="item_list">
-            <h2>{item_list.name}</h2>
+            <div class="item_list_header">
+                <h2>{item_list.name}</h2>
+                <button on:click=move |_| {item_list.items.update(|l| {l.pop();})}>undo</button>
+            </div>
             <For
                 each=item_list.items
                 key=|&(idx, _)| idx
