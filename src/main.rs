@@ -44,7 +44,7 @@ fn App() -> impl IntoView {
             ],
         ),
         ItemList::new(
-            "Nirite",
+            "Nitrite",
             vec![
                 PreListItem::Task(Task::new("Fill test tube with 5ml of water")),
                 PreListItem::Task(Task::new("Add 5 drops of Nitrite Test Solution")),
@@ -135,6 +135,7 @@ fn TimedTaskComponent(
     item_list_context: ItemListContext,
 ) -> impl IntoView {
     view! { <div>
+        <div>{timed_task.get_untracked().text} {move || format!(" {:#.2?}", timed_task.get_untracked().duration_remaining.get())}</div>
         <button on:click=move |_|{
             match timed_task.get_untracked().state.get() {
                 TimedTaskState::NotStarted => {
@@ -183,7 +184,6 @@ fn TimedTaskComponent(
             TimedTaskState::Ongoing => "reset",
             TimedTaskState::Done => "next",
         }}</button>
-        <div>{timed_task.get_untracked().text} {move || format!(" {:#.2?}", timed_task.get_untracked().duration_remaining.get())}</div>
         </div>
     }
 }
@@ -191,6 +191,7 @@ fn TimedTaskComponent(
 #[component]
 fn TaskComponent(task: RwSignal<Task>, item_list_context: ItemListContext) -> impl IntoView {
     view! { <div>
+        <div>{move || task.get_untracked().text}</div>
         <button on:click=move|_| {
             task.get_untracked().state.update(|t| {
                 *t = match *t {
@@ -216,7 +217,6 @@ fn TaskComponent(task: RwSignal<Task>, item_list_context: ItemListContext) -> im
                 }
             })
         }</button>
-        <div>{move || task.get_untracked().text}</div>
         </div>
     }
 }
