@@ -100,7 +100,7 @@ fn ItemListComponent(item_list: ItemList) -> impl IntoView {
             <For
                 each=item_list.items
                 key=|&(idx, _)| idx
-                view=move |(_, item)| {
+                children=move |(_, item)| {
                     view! {<ListItemComponent item item_list_context/>}
                 }
             />
